@@ -4,11 +4,7 @@
 #include <linux/types.h>
 #include <linux/version.h>
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 10, 245)
 #define __SULOG_GATE        1
-#else
-#define __SULOG_GATE        0
-#endif
 
 #if __SULOG_GATE
 extern struct timezone sys_tz;
@@ -18,6 +14,23 @@ extern struct timezone sys_tz;
 #define SULOG_ENTRY_MAX_LEN 512
 #define SULOG_COMM_LEN 256
 #define DEDUP_SECS     10
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 8, 0)
+#include <linux/rtc.h>
+
+static inline void time64_to_tm(time64_t totalsecs, int offset, struct tm *result)
+{
+    struct rtc_time rtc_tm;
+    rtc_time64_to_tm(totalsecs, &rtc_tm);
+
+    result->tm_sec  = rtc_tm.tm_sec;
+    result->tm_min  = rtc_tm.tm_min;
+    result->tm_hour = rtc_tm.tm_hour;
+    result->tm_mday = rtc_tm.tm_mday;
+    result->tm_mon  = rtc_tm.tm_mon;
+    result->tm_year = rtc_tm.tm_year;
+}
+#endif
 
 struct dedup_key {
     u32     crc;
@@ -45,8 +58,8 @@ static inline u32 dedup_calc_hash(const char *content, size_t len)
 }
 
 struct sulog_entry {
-	struct list_head list;
-	char content[SULOG_ENTRY_MAX_LEN];
+    struct list_head list;
+    char content[SULOG_ENTRY_MAX_LEN];
 };
 
 void ksu_sulog_report_su_grant(uid_t uid, const char *comm, const char *method);
